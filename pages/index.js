@@ -1,85 +1,88 @@
-import {
-  Button,
-  Card,
-  Form,
-  FormLayout,
-  Layout,
-  Page,
-  SettingToggle,
-  Stack,
-  TextField,
-  TextStyle,
-} from '@shopify/polaris';
+import { EmptyState, Layout, Page } from '@shopify/polaris';
+import { ResourcePicker, TitleBar } from '@shopify/app-bridge-react';
+import gql from 'graphql-tag';
+import { Query } from 'react-apollo';
 
-class AnnotatedLayout extends React.Component {
-  state = {
-    discount: '10%',
-    enabled: false,
-  };
+const img = 'https://cdn.shopify.com/s/files/1/0757/9955/files/empty-state.svg';
+const GET_ALL_CUSTOMERS = gql`
+{
+    customers(first:10, query: "country:france") {
+      edges {
+        node {
+          id
+          firstName
+          lastName
+          email
+          phone
+        }
+      }
+    }
+  }
+  
+`;
 
+
+
+class Index extends React.Component {
+  state = { open: false };
   render() {
-    const { discount, enabled } = this.state;
-    const contentStatus = enabled ? 'Disable' : 'Enable';
-    const textStatus = enabled ? 'enabled' : 'disabled';
-
     return (
-       <Page>
+      <Page>
+        <TitleBar
+          primaryAction={{
+            content: 'Select products',
+            onAction: () => this.setState({ open: true }),
+          }}
+        />
+        <ResourcePicker
+          resourceType="Product"
+          showVariants={false}
+          open={this.state.open}
+          onSelection={(resources) => this.handleSelection(resources)}
+          onCancel={() => this.setState({ open: false })}
+        />
         <Layout>
-          <Layout.AnnotatedSection
-            title="Default discount"
-            description="Add a product to Sample App, it will automatically be discounted."
+          <EmptyState
+            heading="Select products to start"
+            action={{
+              content: 'Select products',
+              onAction: () => this.setState({ open: true }),
+            }}
+            image={img}
           >
-            <Card sectioned>
-              <Form onSubmit={this.handleSubmit}>
-                <FormLayout>
-                  <TextField
-                    value={discount}
-                    onChange={this.handleChange('discount')}
-                    label="Discount percentage"
-                    type="discount"
-                  />
-                  <Stack distribution="trailing">
-                    <Button primary submit>
-                      Save
-                    </Button>
-                  </Stack>
-                </FormLayout>
-              </Form>
-            </Card>
-          </Layout.AnnotatedSection>
-          <Layout.AnnotatedSection
-            title="Price updates"
-            description="Temporarily disable all Sample App price updates"
-          >
-            <SettingToggle
-              action={{
-                content: contentStatus,
-                onAction: this.handleToggle,
-              }}
-              enabled={enabled}
-            >
-              This setting is{' '}
-              <TextStyle variation="strong">{textStatus}</TextStyle>.
-            </SettingToggle>
-          </Layout.AnnotatedSection>
+            <p>Select products and change their price temporarily</p>
+          </EmptyState>
         </Layout>
-      </Page>
+        <Query query={GET_ALL_CUSTOMERS}>
+          {({ data, loading, error }) => {
+            if (loading) return <div>Loading…</div>;
+            if (error) return <div>{error.message}</div>;
+            console.log(data);
+            return (
+                <div>
+                {data.customers.edges.map((edges, index)=>(
+                  <div>
+                  <ul>
+                          <li> {edges.node.id}</li>
+                          <li> {edges.node.firstName} {edges.node.lastName}</li>
+                          <li> {edges.node.email}</li>
+                          <li> {edges.node.phone}</li>
+                      </ul>
+                  </div>
+                 ))}
+                </div>
+            );
+          }}
+        </Query>
+
+      </Page >
     );
   }
-  handleSubmit = () => {
-    this.setState({
-      discount: this.state.discount,
-    });
-    console.log('submission', this.state);
-  };
-  handleChange = (field) => {
-    return (value) => this.setState({[field]: value});
-  };
-  handleToggle = () => {
-    this.setState(({ enabled }) => {
-      return { enabled: !enabled };
-    });
+  handleSelection = (resources) => {
+    const idsFromResources = resources.selection.map((product) => product.id);
+    this.setState({ open: false })
+    console.log(resources)
   };
 }
 
-export default AnnotatedLayout;
+export default Index;
